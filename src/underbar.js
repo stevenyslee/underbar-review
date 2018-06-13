@@ -24,7 +24,7 @@
    *
    * The .first function is implemented for you, to help guide you toward success
    * in your work on the following functions. Whenever you see a portion of the
-   * assignment pre-completed, be sure to read and understand it fully before
+   * assignment pre-compvared, be sure to read and understand it fully before
    * you proceed. Skipping this step will lead to considerably more difficulty
    * implementing the sections you are responsible for.
    */
@@ -48,6 +48,15 @@
   // Note: _.each does not have a return value, but rather simply runs the
   // iterator function over each item in the input collection.
   _.each = function(collection, iterator) {
+    if( collection instanceof Array ){
+      for( var i = 0; i < collection.length; i++ ){
+        iterator(collection[i], i, collection);
+      }
+    } else if( collection instanceof Object ){
+      for(var key in collection){
+        iterator(collection[key], key, collection);
+      }
+    }
   };
 
   // Returns the index at which value can be found in the array, or -1 if value
@@ -69,16 +78,50 @@
 
   // Return all elements of an array that pass a truth test.
   _.filter = function(collection, test) {
+    var result = [];
+    _.each(collection, function(value, index, collection){
+      if( test(value) ){
+        result.push(value);
+      }
+    });
+    
+    // for( var i = 0; i < collection.length; i++ ){
+    //   if( test(collection[i]) ){
+    //     result.push(collection[i]);
+    //   }
+    // }
+    
+    return result;
+    
   };
 
   // Return all elements of an array that don't pass a truth test.
   _.reject = function(collection, test) {
     // TIP: see if you can re-use _.filter() here, without simply
     // copying code in and modifying it
+    var oppo = function(x){
+      return !test(x);
+    }
+    return _.filter(collection, oppo);
+    
   };
 
   // Produce a duplicate-free version of the array.
   _.uniq = function(array, isSorted, iterator) {
+    iterator = iterator || _.identity;
+    var result = [];
+    var mutate = [];
+
+    
+    for( var i = 0; i < array.length; i++ ){
+      var elementMutate = iterator(array[i]);
+      
+      if( _.indexOf(mutate, elementMutate) === -1 ){
+        result.push(array[i]);
+        mutate.push(elementMutate);
+      }
+    }
+    return result;
   };
 
 
@@ -87,6 +130,14 @@
     // map() is a useful primitive iteration function that works a lot
     // like each(), but in addition to running the operation on all
     // the members, it also maintains an array of results.
+    iterator = iterator || _.identity;
+    var result = [];
+    
+    for( var i = 0; i < collection.length; i++ ){
+      // console.log(iterator(collection[i]));
+      result.push(iterator(collection[i]));
+    }
+    return result;
   };
 
   /*
@@ -95,7 +146,7 @@
    * as an example of this.
    */
 
-  // Takes an array of objects and returns and array of the values of
+  // Takes an array of objects and returns an array of the values of
   // a certain property in it. E.g. take an array of people and return
   // an array of just their ages
   _.pluck = function(collection, key) {
@@ -128,6 +179,21 @@
   //   }); // should be 5, regardless of the iterator function passed in
   //          No accumulator is given so the first element is used.
   _.reduce = function(collection, iterator, accumulator) {
+    if( collection instanceof Array ){
+      var x = accumulator === undefined ? collection[0] : iterator(accumulator,collection[0]);
+      var i;
+      for(i = 1; i < collection.length; i++){
+        x = iterator(x,collection[i]);
+      }
+      return x;
+    } else if( collection instanceof Object ){
+      var keys = Object.keys(collection);
+      var result = accumulator === undefined ? collection[keys[0]] : iterator(accumulator, collection[keys[0]]);
+      for( i = 1; i < keys.length; i++ ){
+        result = iterator(result, collection[keys[i]]);
+      } 
+      return result;
+    }
   };
 
   // Determine if the array or object contains a given value (using `===`).
@@ -146,12 +212,27 @@
   // Determine whether all of the elements match a truth test.
   _.every = function(collection, iterator) {
     // TIP: Try re-using reduce() here.
+    iterator = iterator || _.identity;
+    var fun = function(x,y){
+      return x && !!iterator(y);
+    }
+    
+    if( collection.length === 0 ){
+      return true;
+    }
+    return _.reduce(collection, fun, true);
   };
 
   // Determine whether any of the elements pass a truth test. If no iterator is
   // provided, provide a default one
   _.some = function(collection, iterator) {
+    iterator = iterator || _.identity;
     // TIP: There's a very clever way to re-use every() here.
+    var oppo = function(x){
+      return !iterator(x);
+    }
+    if(_.every(collection, oppo) === true) return false;
+    return true;
   };
 
 
@@ -174,11 +255,26 @@
   //     bla: "even more stuff"
   //   }); // obj1 now contains key1, key2, key3 and bla
   _.extend = function(obj) {
+    for( var i = 1; i < arguments.length; i++ ){
+      for( var key in arguments[i] ){
+        obj[key] = arguments[i][key];
+      }
+    }
+    return obj;
   };
 
   // Like extend, but doesn't ever overwrite a key that already
   // exists in obj
   _.defaults = function(obj) {
+    
+    for( var i = 1; i < arguments.length; i++ ){
+      for( var key in arguments[i] ){
+        if( obj[key] === undefined ){
+          obj[key] = arguments[i][key];
+        }
+      }
+    }
+    return obj;
   };
 
 
@@ -204,7 +300,7 @@
     return function() {
       if (!alreadyCalled) {
         // TIP: .apply(this, arguments) is the standard way to pass on all of the
-        // infromation from one function call to another.
+        // information from one function call to another.
         result = func.apply(this, arguments);
         alreadyCalled = true;
       }
@@ -222,6 +318,14 @@
   // already computed the result for the given argument and return that value
   // instead if possible.
   _.memoize = function(func) {
+    var memory = {};
+    return function(){
+      var hash = JSON.stringify(arguments);
+      if( memory[hash] === undefined ){
+        memory[hash] = func.apply(this, arguments);
+      }
+      return memory[hash];
+    }
   };
 
   // Delays a function for the given number of milliseconds, and then calls
@@ -231,6 +335,10 @@
   // parameter. For example _.delay(someFunction, 500, 'a', 'b') will
   // call someFunction('a', 'b') after 500ms
   _.delay = function(func, wait) {
+    var slicedArgs = Array.prototype.slice.call(arguments, 2);
+    setTimeout(function(){
+      func.apply(this, slicedArgs);
+    },wait);
   };
 
 
@@ -245,6 +353,18 @@
   // input array. For a tip on how to make a copy of an array, see:
   // http://mdn.io/Array.prototype.slice
   _.shuffle = function(array) {
+    var clone = new Array(array.length);
+    for(var i = 0; i < array.length; i++){
+      var rand = Math.floor(Math.random()*clone.length);
+      
+      while( clone[rand] !== undefined ){
+        rand = Math.floor(Math.random()*clone.length);
+      }
+      
+      clone[rand] = array[i];
+      
+    }
+    return clone;
   };
 
 
@@ -257,8 +377,19 @@
    */
 
   // Calls the method named by functionOrKey on each value in the list.
-  // Note: You will need to learn a bit about .apply to complete this.
+  // Note: You will need to learn a bit about .apply to compare this.
   _.invoke = function(collection, functionOrKey, args) {
+    var slicedArgs = Array.prototype.slice.call(arguments, 2);
+    for(var i = 0; i < collection.length; i++){
+      if(typeof functionOrKey === "string"){
+        collection[i] = collection[i][functionOrKey]();
+      }else{
+        collection[i] = functionOrKey.apply(collection[i], slicedArgs);
+      }
+      
+    }
+    return collection;
+    
   };
 
   // Sort the object's values by a criterion produced by an iterator.
@@ -281,6 +412,15 @@
   //
   // Hint: Use Array.isArray to check if something is an array
   _.flatten = function(nestedArray, result) {
+    result = result || [];
+    for( let i = 0; i < nestedArray.length; i++ ){
+      if( Array.isArray(nestedArray[i]) ){
+        _.flatten(nestedArray[i], result);
+      } else {
+        result.push(nestedArray[i]);
+      }
+    }
+    return result;
   };
 
   // Takes an arbitrary number of arrays and produces an array that contains
